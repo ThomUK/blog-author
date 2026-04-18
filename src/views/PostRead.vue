@@ -7,7 +7,7 @@ import { useDraftsStore } from '../stores/drafts'
 import { renderMarkdown } from '../lib/markdown'
 import { mergePr, findOpenPrForBranch } from '../lib/github'
 
-const props = defineProps<{ slug: string }>()
+const props = defineProps<{ postKey: string }>()
 const posts = usePostsStore()
 const drafts = useDraftsStore()
 const router = useRouter()
@@ -16,17 +16,17 @@ const { items } = storeToRefs(posts)
 const merging = ref(false)
 const actionError = ref<string | null>(null)
 
-const post = computed(() => posts.bySlug(props.slug))
+const post = computed(() => posts.byKey(props.postKey))
 const html = computed(() => (post.value ? renderMarkdown(post.value.body) : ''))
-const draft = computed(() => drafts.get(props.slug))
+const draft = computed(() => drafts.get(props.postKey))
 
 onMounted(async () => {
   if (items.value.length === 0) await posts.load()
-  const d = drafts.get(props.slug)
+  const d = drafts.get(props.postKey)
   if (d && d.branch) {
     const prNumber = await findOpenPrForBranch(d.branch).catch(() => null)
-    if (prNumber === null) drafts.remove(props.slug)
-    else if (prNumber !== d.prNumber) drafts.set(props.slug, { ...d, prNumber })
+    if (prNumber === null) drafts.remove(props.postKey)
+    else if (prNumber !== d.prNumber) drafts.set(props.postKey, { ...d, prNumber })
   }
 })
 
@@ -37,7 +37,7 @@ async function publish(): Promise<void> {
   actionError.value = null
   try {
     await mergePr(d.prNumber)
-    drafts.remove(props.slug)
+    drafts.remove(props.postKey)
     posts.invalidate()
     await posts.load()
     router.push({ name: 'posts' })
@@ -54,7 +54,7 @@ async function publish(): Promise<void> {
     <div class="row">
       <RouterLink to="/posts" class="btn btn-ghost">&larr; Back</RouterLink>
       <div style="flex: 1;"></div>
-      <RouterLink v-if="post" :to="{ name: 'edit', params: { slug: props.slug } }" class="btn">Edit</RouterLink>
+      <RouterLink v-if="post" :to="{ name: 'edit', params: { postKey: props.postKey } }" class="btn">Edit</RouterLink>
       <button
         v-if="draft && draft.prNumber"
         class="btn btn-ok"
@@ -68,7 +68,7 @@ async function publish(): Promise<void> {
 
     <article v-if="post" class="card stack">
       <header class="stack" style="gap: 0.5rem;">
-        <h1 style="margin: 0;">{{ post.frontmatter.friendly_title || post.slug }}</h1>
+        <h1 style="margin: 0;">{{ post.frontmatter.friendly_title || post.slug || post.name }}</h1>
         <div class="row" style="gap: 0.5rem; align-items: center; flex-wrap: wrap;">
           <span v-if="post.date" class="muted" style="font-size: 0.9rem;">{{ post.date }}</span>
           <span

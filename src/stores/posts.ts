@@ -5,6 +5,7 @@ import { parseFrontmatter, type Frontmatter } from '../lib/frontmatter'
 import { parseFilename } from '../lib/filename'
 
 export interface PostSummary {
+  key: string
   name: string
   path: string
   sha: string
@@ -30,6 +31,7 @@ export const usePostsStore = defineStore('posts', () => {
         const { data, content } = parseFrontmatter(post.content)
         const parsed = parseFilename(f.name)
         summaries.push({
+          key: f.name.replace(/\.md$/, ''),
           name: f.name,
           path: f.path,
           sha: post.sha,
@@ -48,13 +50,13 @@ export const usePostsStore = defineStore('posts', () => {
     }
   }
 
-  function bySlug(slug: string): PostSummary | undefined {
-    return items.value.find((p) => p.slug === slug)
+  function byKey(key: string): PostSummary | undefined {
+    return items.value.find((p) => p.key === key)
   }
 
   function invalidate(): void {
     items.value = []
   }
 
-  return { items, loading, error, load, bySlug, invalidate }
+  return { items, loading, error, load, byKey, invalidate }
 })

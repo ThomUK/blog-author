@@ -27,8 +27,8 @@ const posts = usePostsStore()
 const drafts = useDraftsStore()
 const { items } = storeToRefs(posts)
 
-const slugParam = computed(() => (typeof route.params.slug === 'string' ? route.params.slug : null))
-const isNew = computed(() => !slugParam.value)
+const postKey = computed(() => (typeof route.params.postKey === 'string' ? route.params.postKey : null))
+const isNew = computed(() => !postKey.value)
 
 const tab = ref<'write' | 'preview' | 'meta'>('write')
 
@@ -58,13 +58,16 @@ const derivedFilename = computed(() =>
 const derivedPath = computed(() =>
   derivedFilename.value ? `${cfg().postsDir}/${derivedFilename.value}` : ''
 )
+const derivedKey = computed(() =>
+  derivedFilename.value ? derivedFilename.value.replace(/\.md$/, '') : ''
+)
 
 onMounted(async () => {
   if (isNew.value) return
   loading.value = true
   try {
     if (items.value.length === 0) await posts.load()
-    const existing = posts.bySlug(slugParam.value!)
+    const existing = posts.byKey(postKey.value!)
     if (!existing) throw new Error('Post not found')
     const fresh = await readPost(existing.path)
     const { data, content } = parseFrontmatter(fresh.content)
@@ -110,8 +113,9 @@ async function save(): Promise<void> {
     const slug = derivedSlug.value
     const date = derivedDate.value
     const path = derivedPath.value
+    const key = derivedKey.value
 
-    const existingDraft = drafts.get(slug)
+    const existingDraft = drafts.get(key)
     let branch: string
     if (existingDraft) {
       branch = existingDraft.branch
@@ -140,12 +144,12 @@ async function save(): Promise<void> {
       prNumber = await openPr(branch, `Draft: ${meta.friendly_title}`, 'Opened by blog-author.')
     }
 
-    drafts.set(slug, { branch, prNumber, path })
+    drafts.set(key, { branch, prNumber, path })
     posts.invalidate()
 
     saveMessage.value = `Saved. PR #${prNumber} on branch ${branch}.`
     if (isNew.value) {
-      router.replace({ name: 'edit', params: { slug } })
+      router.replace({ name: 'edit', params: { postKey: key } })
     }
   } catch (e) {
     saveError.value = (e as Error).message ?? 'Save failed'

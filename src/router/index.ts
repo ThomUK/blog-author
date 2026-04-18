@@ -5,8 +5,8 @@ const routes = [
   { path: '/', redirect: '/posts' },
   { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue') },
   { path: '/posts', name: 'posts', component: () => import('../views/PostList.vue'), meta: { requiresConfig: true } },
-  { path: '/posts/:slug', name: 'read', component: () => import('../views/PostRead.vue'), meta: { requiresConfig: true }, props: true },
-  { path: '/posts/:slug/edit', name: 'edit', component: () => import('../views/PostEdit.vue'), meta: { requiresConfig: true }, props: true },
+  { path: '/posts/:postKey', name: 'read', component: () => import('../views/PostRead.vue'), meta: { requiresConfig: true }, props: true },
+  { path: '/posts/:postKey/edit', name: 'edit', component: () => import('../views/PostEdit.vue'), meta: { requiresConfig: true }, props: true },
   { path: '/new', name: 'new', component: () => import('../views/PostEdit.vue'), meta: { requiresConfig: true } }
 ]
 
