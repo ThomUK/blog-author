@@ -22,7 +22,6 @@ const draft = computed(() => drafts.get(props.slug))
 
 onMounted(async () => {
   if (items.value.length === 0) await posts.load()
-  // Reconcile draft state: if we have a stored draft, confirm the PR is still open.
   const d = drafts.get(props.slug)
   if (d && d.branch) {
     const prNumber = await findOpenPrForBranch(d.branch).catch(() => null)
@@ -62,23 +61,22 @@ async function publish(): Promise<void> {
         type="button"
         :disabled="merging"
         @click="publish"
-      >{{ merging ? 'Publishing\u2026' : 'Publish (merge PR #' + draft.prNumber + ')' }}</button>
+      >{{ merging ? 'Publishing&hellip;' : 'Publish (merge PR #' + draft.prNumber + ')' }}</button>
     </div>
 
     <p v-if="actionError" class="error">{{ actionError }}</p>
 
     <article v-if="post" class="card stack">
-      <header>
-        <h1 style="margin: 0 0 0.25rem;">{{ post.frontmatter.friendly_title || post.slug }}</h1>
-        <p class="muted" style="margin: 0;">
-          <span>{{ post.date }}</span>
-          <span v-if="post.frontmatter.tags"> \u00b7 {{ post.frontmatter.tags }}</span>
+      <header class="stack" style="gap: 0.5rem;">
+        <h1 style="margin: 0;">{{ post.frontmatter.friendly_title || post.slug }}</h1>
+        <div class="row" style="gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          <span v-if="post.date" class="muted" style="font-size: 0.9rem;">{{ post.date }}</span>
           <span
             class="badge"
             :class="post.frontmatter.visible ? 'badge-ok' : 'badge-warn'"
-            style="margin-left: 0.5rem;"
           >{{ post.frontmatter.visible ? 'visible' : 'hidden' }}</span>
-        </p>
+          <span v-if="post.frontmatter.tags" class="badge">{{ post.frontmatter.tags }}</span>
+        </div>
       </header>
       <div class="markdown-body" v-html="html"></div>
     </article>
