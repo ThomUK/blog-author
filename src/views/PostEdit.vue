@@ -172,7 +172,7 @@ async function save(): Promise<void> {
       @change="(id: string) => (tab = id as 'write' | 'preview' | 'meta')"
     />
 
-    <p v-if="loading" class="muted">Loading\u2026</p>
+    <p v-if="loading" class="muted">Loading&hellip;</p>
 
     <MarkdownEditor v-show="tab === 'write'" v-model="body" />
     <MarkdownPreview v-if="tab === 'preview'" :source="body" />
