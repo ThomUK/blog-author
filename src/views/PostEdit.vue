@@ -69,7 +69,20 @@ onMounted(async () => {
     if (items.value.length === 0) await posts.load()
     const existing = posts.byKey(postKey.value!)
     if (!existing) throw new Error('Post not found')
-    const fresh = await readPost(existing.path)
+
+    const draft = drafts.get(postKey.value!)
+    let fresh
+    if (draft?.branch) {
+      try {
+        fresh = await readPost(existing.path, draft.branch)
+      } catch {
+        if (existing.draftOnly) throw new Error('Draft branch no longer has this file.')
+        fresh = await readPost(existing.path)
+      }
+    } else {
+      fresh = await readPost(existing.path)
+    }
+
     const { data, content } = parseFrontmatter(fresh.content)
     body.value = content.replace(/^\n/, '')
     Object.assign(meta, {
