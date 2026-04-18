@@ -40,7 +40,7 @@ const meta = reactive<Frontmatter>({
   summary: null
 })
 
-const originalSha = ref<string | null>(null)
+const currentSha = ref<string | null>(null)
 const originalPath = ref<string | null>(null)
 const originalDate = ref<string | null>(null)
 const originalSlug = ref<string | null>(null)
@@ -91,7 +91,7 @@ onMounted(async () => {
       visible: data.visible ?? false,
       summary: data.summary ?? null
     })
-    originalSha.value = fresh.sha
+    currentSha.value = fresh.sha
     originalPath.value = fresh.path
     originalDate.value = existing.date
     originalSlug.value = existing.slug
@@ -130,27 +130,44 @@ async function save(): Promise<void> {
 
     const existingDraft = drafts.get(key)
     let branch: string
+    let branchIsNew = false
     if (existingDraft) {
       branch = existingDraft.branch
-      if (!(await branchExists(branch))) await createBranch(branch)
+      if (!(await branchExists(branch))) {
+        await createBranch(branch)
+        branchIsNew = true
+      }
     } else {
       const prefix: 'post' | 'edit' = isNew.value ? 'post' : 'edit'
       branch = buildBranchName(prefix, date, slug)
-      if (!(await branchExists(branch))) await createBranch(branch)
+      if (!(await branchExists(branch))) {
+        await createBranch(branch)
+        branchIsNew = true
+      }
+    }
+
+    // Pick the sha to submit with the PUT.
+    // - Authoritative: currentSha.value, updated after every successful put.
+    // - On a brand-new branch we just created from base, the file's blob sha
+    //   there matches whatever we have from the base read (currentSha).
+    // - For a pre-existing draft branch we haven't read from in this session
+    //   (e.g. resumed from localStorage), fall back to a fresh read.
+    let sha: string | undefined = currentSha.value ?? undefined
+    if (!sha && !branchIsNew && !isNew.value) {
+      try {
+        const fresh = await readPost(path, branch)
+        sha = fresh.sha
+      } catch {
+        sha = undefined
+      }
     }
 
     const file = serializeFrontmatter({ ...meta }, body.value)
-    let sha: string | undefined
-    try {
-      const existingOnBranch = await readPost(path, branch)
-      sha = existingOnBranch.sha
-    } catch {
-      sha = undefined
-    }
     const message = isNew.value
       ? `Draft: ${meta.friendly_title}`
       : `Edit: ${meta.friendly_title}`
-    await putFile(branch, path, file, message, sha)
+    const put = await putFile(branch, path, file, message, sha)
+    currentSha.value = put.sha
 
     let prNumber = existingDraft?.prNumber ?? (await findOpenPrForBranch(branch))
     if (!prNumber) {
