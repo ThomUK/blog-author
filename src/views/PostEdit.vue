@@ -10,6 +10,7 @@ import {
   cfg,
   branchExists,
   createBranch,
+  deleteBranch,
   findOpenPrForBranch,
   openPr,
   putFile,
@@ -134,15 +135,27 @@ async function save(): Promise<void> {
     } else {
       const prefix: 'post' | 'edit' = isNew.value ? 'post' : 'edit'
       branch = buildBranchName(prefix, date, slug)
-      if (!(await branchExists(branch))) await createBranch(branch)
+      if (await branchExists(branch)) {
+        // Branch exists but we have no local draft entry. Either:
+        //   (a) another session/device has an open PR on it, or
+        //   (b) it's a stale branch left over from a previously merged or
+        //       closed PR (we now delete on merge, but older deployments
+        //       or manual merges may have left branches in place).
+        // If there's no open PR, treat it as stale and reset it to main so
+        // the squash merge on next merge computes a clean diff.
+        const existingPr = await findOpenPrForBranch(branch)
+        if (existingPr === null) {
+          try { await deleteBranch(branch) } catch { /* ignore */ }
+          await createBranch(branch)
+        }
+      } else {
+        await createBranch(branch)
+      }
     }
 
     // Always read the file's current sha from the target branch before PUT.
-    // The branch may have been created fresh from base in this session, or
-    // it may have existed from a prior session (possibly with diverged
-    // contents). Reading from the branch avoids submitting a stale sha.
-    // Fetch is configured with cache: 'no-store' so the read is never
-    // served from the browser's HTTP cache.
+    // Fetch is configured with cache: 'no-store' so the read is always
+    // fresh from GitHub.
     let sha: string | undefined
     if (!isNew.value) {
       try {
