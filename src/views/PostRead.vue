@@ -58,6 +58,13 @@ async function mergeDraftPr(): Promise<void> {
   actionError.value = null
   try {
     await mergePr(d.prNumber)
+    // Delete the merged branch so subsequent edits to the same post start
+    // from a fresh branch off main. Leaving the branch in place causes
+    // GitHub's merge-base calculation on the next PR to be the pre-merge
+    // common ancestor, which with squash merges can produce a zero-change
+    // diff (the reason an earlier edit of this post looked like a no-op
+    // on main even though the branch tip differed).
+    try { await deleteBranch(d.branch) } catch { /* already gone */ }
     drafts.remove(props.postKey)
     posts.invalidate()
     await posts.load()
