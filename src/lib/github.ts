@@ -20,6 +20,11 @@ export function gh(): Octokit {
   return new Octokit({ auth: settings.state.token })
 }
 
+const noCacheHeaders = {
+  'If-None-Match': '',
+  'Cache-Control': 'no-cache'
+}
+
 export interface PostFile {
   name: string
   path: string
@@ -32,7 +37,8 @@ export async function listPosts(): Promise<PostFile[]> {
     owner,
     repo,
     path: postsDir,
-    ref: baseBranch
+    ref: baseBranch,
+    headers: noCacheHeaders
   })
   if (!Array.isArray(data)) throw new Error(`${postsDir} is not a directory`)
   return data
@@ -49,7 +55,8 @@ export async function readPost(
     owner,
     repo,
     path,
-    ref: ref ?? baseBranch
+    ref: ref ?? baseBranch,
+    headers: noCacheHeaders
   })
   if (Array.isArray(data) || data.type !== 'file') throw new Error(`Expected file at ${path}`)
   const file = data as { sha: string; path: string; content: string }
@@ -61,7 +68,8 @@ export async function getBaseHeadSha(): Promise<string> {
   const { data } = await gh().rest.git.getRef({
     owner,
     repo,
-    ref: `heads/${baseBranch}`
+    ref: `heads/${baseBranch}`,
+    headers: noCacheHeaders
   })
   return data.object.sha
 }
@@ -69,7 +77,12 @@ export async function getBaseHeadSha(): Promise<string> {
 export async function branchExists(branch: string): Promise<boolean> {
   try {
     const { owner, repo } = cfg()
-    await gh().rest.git.getRef({ owner, repo, ref: `heads/${branch}` })
+    await gh().rest.git.getRef({
+      owner,
+      repo,
+      ref: `heads/${branch}`,
+      headers: noCacheHeaders
+    })
     return true
   } catch {
     return false
@@ -93,9 +106,9 @@ export async function putFile(
   content: string,
   message: string,
   sha?: string
-): Promise<void> {
+): Promise<{ sha: string }> {
   const { owner, repo } = cfg()
-  await gh().rest.repos.createOrUpdateFileContents({
+  const { data } = await gh().rest.repos.createOrUpdateFileContents({
     owner,
     repo,
     path,
@@ -104,6 +117,9 @@ export async function putFile(
     branch,
     sha
   })
+  const newSha = data.content?.sha
+  if (!newSha) throw new Error('putFile response missing content.sha')
+  return { sha: newSha }
 }
 
 export async function deleteFile(
@@ -161,7 +177,8 @@ export async function findOpenPrForBranch(branch: string): Promise<number | null
     owner,
     repo,
     head: `${owner}:${branch}`,
-    state: 'open'
+    state: 'open',
+    headers: noCacheHeaders
   })
   return data[0]?.number ?? null
 }
