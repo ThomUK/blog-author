@@ -17,12 +17,18 @@ export function cfg(): RepoConfig {
 export function gh(): Octokit {
   const settings = useSettingsStore()
   if (!settings.state.token) throw new Error('No token configured')
-  return new Octokit({ auth: settings.state.token })
-}
-
-const noCacheHeaders = {
-  'If-None-Match': '',
-  'Cache-Control': 'no-cache'
+  return new Octokit({
+    auth: settings.state.token,
+    request: {
+      // Bypass the browser HTTP cache. GitHub returns Cache-Control:
+      // private, max-age=60 on content API responses, which caused saves
+      // within a minute of a write to read a stale file sha. Using
+      // cache: 'no-store' here avoids sending a custom Cache-Control
+      // request header, which CORS rejects for api.github.com.
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(input, { ...init, cache: 'no-store' })
+    }
+  })
 }
 
 export interface PostFile {
@@ -37,8 +43,7 @@ export async function listPosts(): Promise<PostFile[]> {
     owner,
     repo,
     path: postsDir,
-    ref: baseBranch,
-    headers: noCacheHeaders
+    ref: baseBranch
   })
   if (!Array.isArray(data)) throw new Error(`${postsDir} is not a directory`)
   return data
@@ -55,8 +60,7 @@ export async function readPost(
     owner,
     repo,
     path,
-    ref: ref ?? baseBranch,
-    headers: noCacheHeaders
+    ref: ref ?? baseBranch
   })
   if (Array.isArray(data) || data.type !== 'file') throw new Error(`Expected file at ${path}`)
   const file = data as { sha: string; path: string; content: string }
@@ -68,8 +72,7 @@ export async function getBaseHeadSha(): Promise<string> {
   const { data } = await gh().rest.git.getRef({
     owner,
     repo,
-    ref: `heads/${baseBranch}`,
-    headers: noCacheHeaders
+    ref: `heads/${baseBranch}`
   })
   return data.object.sha
 }
@@ -77,12 +80,7 @@ export async function getBaseHeadSha(): Promise<string> {
 export async function branchExists(branch: string): Promise<boolean> {
   try {
     const { owner, repo } = cfg()
-    await gh().rest.git.getRef({
-      owner,
-      repo,
-      ref: `heads/${branch}`,
-      headers: noCacheHeaders
-    })
+    await gh().rest.git.getRef({ owner, repo, ref: `heads/${branch}` })
     return true
   } catch {
     return false
@@ -177,8 +175,7 @@ export async function findOpenPrForBranch(branch: string): Promise<number | null
     owner,
     repo,
     head: `${owner}:${branch}`,
-    state: 'open',
-    headers: noCacheHeaders
+    state: 'open'
   })
   return data[0]?.number ?? null
 }
