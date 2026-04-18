@@ -41,7 +41,8 @@ onMounted(() => {
               :class="p.frontmatter.visible ? 'badge-ok' : 'badge-warn'"
             >{{ p.frontmatter.visible ? 'visible' : 'hidden' }}</span>
             <span v-if="p.frontmatter.tags" class="badge">{{ p.frontmatter.tags }}</span>
-            <span v-if="drafts.get(p.key)" class="badge badge-warn">draft PR open</span>
+            <span v-if="p.draftOnly" class="badge badge-warn">new draft</span>
+            <span v-else-if="drafts.get(p.key)" class="badge badge-warn">draft PR open</span>
           </div>
         </RouterLink>
       </li>
