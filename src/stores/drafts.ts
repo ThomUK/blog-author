@@ -12,15 +12,23 @@ export interface DraftInfo {
 function load(): Record<string, DraftInfo> {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return {}
-  try { return JSON.parse(raw) as Record<string, DraftInfo> } catch { return {} }
+  try {
+    return JSON.parse(raw) as Record<string, DraftInfo>
+  } catch {
+    return {}
+  }
 }
 
 export const useDraftsStore = defineStore('drafts', () => {
   const map = ref<Record<string, DraftInfo>>(load())
 
-  watch(map, (v) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(v))
-  }, { deep: true })
+  watch(
+    map,
+    (v) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(v))
+    },
+    { deep: true }
+  )
 
   function set(slug: string, info: DraftInfo): void {
     map.value = { ...map.value, [slug]: info }
@@ -33,6 +41,9 @@ export const useDraftsStore = defineStore('drafts', () => {
     delete next[slug]
     map.value = next
   }
+  function clear(): void {
+    map.value = {}
+  }
 
-  return { map, set, get, remove }
+  return { map, set, get, remove, clear }
 })

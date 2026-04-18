@@ -7,7 +7,7 @@ import { useDraftsStore } from '../stores/drafts'
 import { parseFrontmatter, serializeFrontmatter, slugify, type Frontmatter } from '../lib/frontmatter'
 import { buildFilename, buildBranchName, todayIso } from '../lib/filename'
 import {
-  POSTS_DIR,
+  cfg,
   branchExists,
   createBranch,
   findOpenPrForBranch,
@@ -40,7 +40,6 @@ const meta = reactive<Frontmatter>({
   summary: null
 })
 
-// Tracked state for saving.
 const originalSha = ref<string | null>(null)
 const originalPath = ref<string | null>(null)
 const originalDate = ref<string | null>(null)
@@ -57,7 +56,7 @@ const derivedFilename = computed(() =>
   derivedSlug.value ? buildFilename(derivedDate.value, derivedSlug.value) : ''
 )
 const derivedPath = computed(() =>
-  derivedFilename.value ? `${POSTS_DIR}/${derivedFilename.value}` : ''
+  derivedFilename.value ? `${cfg().postsDir}/${derivedFilename.value}` : ''
 )
 
 onMounted(async () => {
@@ -67,7 +66,6 @@ onMounted(async () => {
     if (items.value.length === 0) await posts.load()
     const existing = posts.bySlug(slugParam.value!)
     if (!existing) throw new Error('Post not found')
-    // Re-read via API to get the freshest sha.
     const fresh = await readPost(existing.path)
     const { data, content } = parseFrontmatter(fresh.content)
     body.value = content.replace(/^\n/, '')
@@ -125,9 +123,6 @@ async function save(): Promise<void> {
     }
 
     const file = serializeFrontmatter({ ...meta }, body.value)
-    // If updating an existing post on a freshly-created draft branch we must
-    // pass the sha from base to overwrite it; if committing on top of our own
-    // prior draft commit we need the sha of the blob on that branch.
     let sha: string | undefined
     try {
       const existingOnBranch = await readPost(path, branch)
@@ -140,7 +135,6 @@ async function save(): Promise<void> {
       : `Edit: ${meta.friendly_title}`
     await putFile(branch, path, file, message, sha)
 
-    // Ensure a PR exists.
     let prNumber = existingDraft?.prNumber ?? (await findOpenPrForBranch(branch))
     if (!prNumber) {
       prNumber = await openPr(branch, `Draft: ${meta.friendly_title}`, 'Opened by blog-author.')

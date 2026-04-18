@@ -1,12 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { useSettingsStore } from '../stores/settings'
 
 const routes = [
-  { path: '/', name: 'login', component: () => import('../views/Login.vue') },
-  { path: '/posts', name: 'posts', component: () => import('../views/PostList.vue'), meta: { auth: true } },
-  { path: '/posts/:slug', name: 'read', component: () => import('../views/PostRead.vue'), meta: { auth: true }, props: true },
-  { path: '/posts/:slug/edit', name: 'edit', component: () => import('../views/PostEdit.vue'), meta: { auth: true }, props: true },
-  { path: '/new', name: 'new', component: () => import('../views/PostEdit.vue'), meta: { auth: true } }
+  { path: '/', redirect: '/posts' },
+  { path: '/settings', name: 'settings', component: () => import('../views/Settings.vue') },
+  { path: '/posts', name: 'posts', component: () => import('../views/PostList.vue'), meta: { requiresConfig: true } },
+  { path: '/posts/:slug', name: 'read', component: () => import('../views/PostRead.vue'), meta: { requiresConfig: true }, props: true },
+  { path: '/posts/:slug/edit', name: 'edit', component: () => import('../views/PostEdit.vue'), meta: { requiresConfig: true }, props: true },
+  { path: '/new', name: 'new', component: () => import('../views/PostEdit.vue'), meta: { requiresConfig: true } }
 ]
 
 const router = createRouter({
@@ -15,9 +16,10 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const auth = useAuthStore()
-  if (to.meta.auth && !auth.token) return { name: 'login', query: { next: to.fullPath } }
-  if (to.name === 'login' && auth.token) return { name: 'posts' }
+  const settings = useSettingsStore()
+  if (to.meta.requiresConfig && !settings.isConfigured) {
+    return { name: 'settings', query: { next: to.fullPath } }
+  }
 })
 
 export default router
