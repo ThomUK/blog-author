@@ -106,6 +106,42 @@ export async function putFile(
   })
 }
 
+export async function deleteFile(
+  branch: string,
+  path: string,
+  sha: string,
+  message: string
+): Promise<void> {
+  const { owner, repo } = cfg()
+  await gh().rest.repos.deleteFile({
+    owner,
+    repo,
+    path,
+    message,
+    sha,
+    branch
+  })
+}
+
+export async function deleteBranch(branch: string): Promise<void> {
+  const { owner, repo } = cfg()
+  await gh().rest.git.deleteRef({
+    owner,
+    repo,
+    ref: `heads/${branch}`
+  })
+}
+
+export async function closePr(prNumber: number): Promise<void> {
+  const { owner, repo } = cfg()
+  await gh().rest.pulls.update({
+    owner,
+    repo,
+    pull_number: prNumber,
+    state: 'closed'
+  })
+}
+
 export async function openPr(branch: string, title: string, body = ''): Promise<number> {
   const { owner, repo, baseBranch } = cfg()
   const { data } = await gh().rest.pulls.create({
