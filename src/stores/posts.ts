@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { listPosts, readPost } from '../lib/github'
 import { parseFrontmatter, type Frontmatter } from '../lib/frontmatter'
 import { parseFilename } from '../lib/filename'
+import { useDraftsStore } from './drafts'
 
 export interface PostSummary {
   key: string
@@ -13,6 +14,7 @@ export interface PostSummary {
   slug: string | null
   frontmatter: Frontmatter
   body: string
+  draftOnly: boolean
 }
 
 export const usePostsStore = defineStore('posts', () => {
@@ -24,8 +26,11 @@ export const usePostsStore = defineStore('posts', () => {
     loading.value = true
     error.value = null
     try {
+      const drafts = useDraftsStore()
       const files = await listPosts()
       const summaries: PostSummary[] = []
+      const seenPaths = new Set<string>()
+
       for (const f of files) {
         const post = await readPost(f.path)
         const { data, content } = parseFrontmatter(post.content)
@@ -38,9 +43,35 @@ export const usePostsStore = defineStore('posts', () => {
           date: parsed?.date ?? null,
           slug: parsed?.slug ?? null,
           frontmatter: data,
-          body: content
+          body: content,
+          draftOnly: false
         })
+        seenPaths.add(f.path)
       }
+
+      for (const [key, info] of Object.entries(drafts.map)) {
+        if (seenPaths.has(info.path)) continue
+        try {
+          const fresh = await readPost(info.path, info.branch)
+          const { data, content } = parseFrontmatter(fresh.content)
+          const name = info.path.split('/').pop() ?? `${key}.md`
+          const parsed = parseFilename(name)
+          summaries.push({
+            key,
+            name,
+            path: info.path,
+            sha: fresh.sha,
+            date: parsed?.date ?? null,
+            slug: parsed?.slug ?? null,
+            frontmatter: data,
+            body: content,
+            draftOnly: true
+          })
+        } catch {
+          drafts.remove(key)
+        }
+      }
+
       summaries.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
       items.value = summaries
     } catch (e) {
