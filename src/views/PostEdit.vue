@@ -40,7 +40,6 @@ const meta = reactive<Frontmatter>({
   summary: null
 })
 
-const currentSha = ref<string | null>(null)
 const originalPath = ref<string | null>(null)
 const originalDate = ref<string | null>(null)
 const originalSlug = ref<string | null>(null)
@@ -91,7 +90,6 @@ onMounted(async () => {
       visible: data.visible ?? false,
       summary: data.summary ?? null
     })
-    currentSha.value = fresh.sha
     originalPath.value = fresh.path
     originalDate.value = existing.date
     originalSlug.value = existing.slug
@@ -130,30 +128,23 @@ async function save(): Promise<void> {
 
     const existingDraft = drafts.get(key)
     let branch: string
-    let branchIsNew = false
     if (existingDraft) {
       branch = existingDraft.branch
-      if (!(await branchExists(branch))) {
-        await createBranch(branch)
-        branchIsNew = true
-      }
+      if (!(await branchExists(branch))) await createBranch(branch)
     } else {
       const prefix: 'post' | 'edit' = isNew.value ? 'post' : 'edit'
       branch = buildBranchName(prefix, date, slug)
-      if (!(await branchExists(branch))) {
-        await createBranch(branch)
-        branchIsNew = true
-      }
+      if (!(await branchExists(branch))) await createBranch(branch)
     }
 
-    // Pick the sha to submit with the PUT.
-    // - Authoritative: currentSha.value, updated after every successful put.
-    // - On a brand-new branch we just created from base, the file's blob sha
-    //   there matches whatever we have from the base read (currentSha).
-    // - For a pre-existing draft branch we haven't read from in this session
-    //   (e.g. resumed from localStorage), fall back to a fresh read.
-    let sha: string | undefined = currentSha.value ?? undefined
-    if (!sha && !branchIsNew && !isNew.value) {
+    // Always read the file's current sha from the target branch before PUT.
+    // The branch may have been created fresh from base in this session, or
+    // it may have existed from a prior session (possibly with diverged
+    // contents). Reading from the branch avoids submitting a stale sha.
+    // Fetch is configured with cache: 'no-store' so the read is never
+    // served from the browser's HTTP cache.
+    let sha: string | undefined
+    if (!isNew.value) {
       try {
         const fresh = await readPost(path, branch)
         sha = fresh.sha
@@ -166,8 +157,7 @@ async function save(): Promise<void> {
     const message = isNew.value
       ? `Draft: ${meta.friendly_title}`
       : `Edit: ${meta.friendly_title}`
-    const put = await putFile(branch, path, file, message, sha)
-    currentSha.value = put.sha
+    await putFile(branch, path, file, message, sha)
 
     let prNumber = existingDraft?.prNumber ?? (await findOpenPrForBranch(branch))
     if (!prNumber) {
