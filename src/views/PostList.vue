@@ -19,7 +19,7 @@ onMounted(() => {
     <div class="row">
       <h1 style="margin: 0; flex: 1;">Posts</h1>
       <button class="btn btn-ghost" type="button" :disabled="loading" @click="posts.load()">
-        {{ loading ? 'Loading\u2026' : 'Refresh' }}
+        {{ loading ? 'Loading&hellip;' : 'Refresh' }}
       </button>
       <RouterLink to="/new" class="btn">New post</RouterLink>
     </div>
@@ -30,7 +30,7 @@ onMounted(() => {
 
     <ul class="stack" style="list-style: none; padding: 0;">
       <li v-for="p in items" :key="p.path" class="card">
-        <RouterLink :to="{ name: 'read', params: { slug: p.slug ?? p.name } }" style="color: var(--text); text-decoration: none;">
+        <RouterLink :to="{ name: 'read', params: { postKey: p.key } }" style="color: var(--text); text-decoration: none;">
           <div class="row" style="justify-content: space-between;">
             <strong>{{ p.frontmatter.friendly_title || p.slug || p.name }}</strong>
             <span class="muted" style="font-size: 0.85rem;">{{ p.date ?? '' }}</span>
@@ -41,7 +41,7 @@ onMounted(() => {
               :class="p.frontmatter.visible ? 'badge-ok' : 'badge-warn'"
             >{{ p.frontmatter.visible ? 'visible' : 'hidden' }}</span>
             <span v-if="p.frontmatter.tags" class="badge">{{ p.frontmatter.tags }}</span>
-            <span v-if="p.slug && drafts.get(p.slug)" class="badge badge-warn">draft PR open</span>
+            <span v-if="drafts.get(p.key)" class="badge badge-warn">draft PR open</span>
           </div>
         </RouterLink>
       </li>
