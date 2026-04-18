@@ -1,33 +1,27 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { RouterView, RouterLink, useRouter } from 'vue-router'
+import { RouterView, RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useAuthStore } from './stores/auth'
+import { useSettingsStore } from './stores/settings'
 
-const auth = useAuthStore()
-const router = useRouter()
-const { token, login } = storeToRefs(auth)
+const settings = useSettingsStore()
+const { login, isConfigured } = storeToRefs(settings)
 
 onMounted(async () => {
-  await auth.init()
+  await settings.init()
 })
-
-function logout() {
-  auth.logout()
-  router.push({ name: 'login' })
-}
 </script>
 
 <template>
   <header class="app-header">
-    <RouterLink :to="token ? '/posts' : '/'" class="brand">Blog Author</RouterLink>
-    <nav v-if="token" class="nav">
+    <RouterLink :to="isConfigured ? '/posts' : '/settings'" class="brand">Blog Author</RouterLink>
+    <nav v-if="isConfigured" class="nav">
       <RouterLink to="/posts">Posts</RouterLink>
       <RouterLink to="/new">New</RouterLink>
     </nav>
-    <div v-if="token" class="user">
+    <div class="user">
       <span v-if="login" class="login">@{{ login }}</span>
-      <button type="button" class="btn btn-ghost" @click="logout">Logout</button>
+      <RouterLink to="/settings" class="btn btn-ghost">Settings</RouterLink>
     </div>
   </header>
   <main class="app-main">
